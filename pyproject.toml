@@ -7,6 +7,9 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.12"
+pdfminer-six = "^20231228"
+nltk = "^3.8.1"
+sumy = {git = "https://github.com/miso-belica/sumy.git"}
 
 
 [build-system]
