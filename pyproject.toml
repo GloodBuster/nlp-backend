@@ -12,6 +12,10 @@ nltk = "^3.8.1"
 sumy = {git = "https://github.com/miso-belica/sumy.git"}
 psycopg2 = "^2.9.9"
 python-dotenv = "^1.0.0"
+pip = "^23.3.2"
+setuptools = "^69.0.3"
+wheel = "^0.42.0"
+spacy = "^3.7.2"
 
 
 [build-system]
