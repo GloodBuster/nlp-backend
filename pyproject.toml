@@ -16,6 +16,8 @@ pip = "^23.3.2"
 setuptools = "^69.0.3"
 wheel = "^0.42.0"
 spacy = "^3.7.2"
+fastapi = "^0.109.0"
+uvicorn = "^0.25.0"
 
 
 [build-system]
