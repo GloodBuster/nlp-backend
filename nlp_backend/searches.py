@@ -58,8 +58,6 @@ def search(input_text):
 
     matches_dict = {nlp.vocab.strings[match_id]                    : span for match_id, span in filtered_matches}
 
-    print(matches_dict)
-
     if "LIST_OBRAS" in matches_dict:
         if ("BY_AUTHOR" in matches_dict and "BETWEEN_YEARS" in matches_dict):
             author = ' '.join([token.text for token in matches_dict["BY_AUTHOR"]
@@ -105,6 +103,3 @@ def search(input_text):
 
     else:
         print("No se encontraron coincidencias")
-
-
-search("Listame las obras que se publicaron en el año 1500.")
