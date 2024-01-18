@@ -1,5 +1,7 @@
 import spacy
 from spacy.matcher import Matcher
+from nlp_backend.works import works
+from nlp_backend.publications import publications
 
 
 def search(input_text):
@@ -56,7 +58,8 @@ def search(input_text):
     # Filter the matches
     filtered_matches = filter_spans(matches)
 
-    matches_dict = {nlp.vocab.strings[match_id]                    : span for match_id, span in filtered_matches}
+    matches_dict = {nlp.vocab.strings[match_id]
+        : span for match_id, span in filtered_matches}
 
     if "LIST_OBRAS" in matches_dict:
         if ("BY_AUTHOR" in matches_dict and "BETWEEN_YEARS" in matches_dict):
@@ -67,8 +70,7 @@ def search(input_text):
             lower_year = min(years)
             upper_year = max(years)
 
-            print("Lista de obras escritas por " + author +
-                  " entre los años " + str(lower_year) + " y " + str(upper_year))
+            return [work for work in works if work["elaboration_start_year"] >= lower_year and work["elaboration_end_year"] <= upper_year and author.lower() in (author.lower() for author in work["authors"])]
 
         elif ("BY_AUTHOR" in matches_dict and "LIST_PUBLICATIONS" in matches_dict):
             author = ' '.join([token.text for token in matches_dict["BY_AUTHOR"]
@@ -76,8 +78,9 @@ def search(input_text):
             year = [int(token.text) for token in matches_dict["LIST_PUBLICATIONS"]
                     if token.like_num][0]
 
-            print("Lista de obras escritas por " + author +
-                  " publicadas en el año " + str(year))
+            return [work for work in works if author.lower() in (author.lower() for author in work["authors"]) and
+                    any(publication['year'] == year and publication['work_id'] == work['id']
+                        for publication in publications)]
 
         elif "BETWEEN_YEARS" in matches_dict:
             years = [int(token.text) for token in matches_dict["BETWEEN_YEARS"]
@@ -85,21 +88,23 @@ def search(input_text):
             lower_year = min(years)
             upper_year = max(years)
 
-            print("Lista de obras entre los años " +
-                  str(lower_year) + " y " + str(upper_year))
+            return [work for work in works if work["elaboration_start_year"] >= lower_year and work["elaboration_end_year"] <= upper_year]
 
         elif "LIST_PUBLICATIONS" in matches_dict:
             year = [int(token.text) for token in matches_dict["LIST_PUBLICATIONS"]
                     if token.like_num][0]
-            print("Lista de obras publicadas en el año " + str(year))
+
+            return [work for work in works if any(publication['year'] == year and publication['work_id'] == work['id']
+                                                  for publication in publications)]
 
         elif "BY_AUTHOR" in matches_dict:
             author = ' '.join([token.text for token in matches_dict["BY_AUTHOR"]
                                if token.ent_type_ == "PER"])
-            print("Lista de obras escritas por " + author)
+
+            return [work for work in works if author.lower() in (author.lower() for author in work["authors"])]
 
         else:
-            print("Lista de obras")
+            return works
 
     else:
-        print("No se encontraron coincidencias")
+        return []
