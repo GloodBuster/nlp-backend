@@ -19,15 +19,28 @@ app.add_middleware(
 
 
 def get_db_connection():
-    conn = psycopg2.connect(DATABASE_URL, options='-c client_encoding=latin-1')
-    conn.set_client_encoding('latin-1')
+    conn = psycopg2.connect(DATABASE_URL, options='-c client_encoding=UTF8')
+    conn.set_client_encoding('UTF8')
     return conn
 
 
 @app.get("/works")
 async def get_works(limit: int = 10, offset: int = 0):
     try:
-        from nlp_backend.works import works
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        cur.execute(f"SELECT * FROM works LIMIT {limit} OFFSET {offset}")
+
+        rows = cur.fetchall()
+
+        # Convert the rows into a list of dictionaries
+        works = [dict(zip([column[0] for column in cur.description], row))
+                 for row in rows]
+
+        cur.close()
+        conn.close()
+
         return works
     except Exception as e:
         return JSONResponse(content={"error": str(e)}, status_code=500)
@@ -36,9 +49,20 @@ async def get_works(limit: int = 10, offset: int = 0):
 @app.get("/works/{id}")
 async def get_works(id: int):
     try:
-        from nlp_backend.works import works
+        conn = get_db_connection()
+        cur = conn.cursor()
 
-        work = next((work for work in works if work["id"] == id), None)
+        cur.execute(f"SELECT * FROM works WHERE id = {id}")
+
+        row = cur.fetchone()
+
+        # Convert the row into a dictionary
+        work = dict(zip([column[0]
+                    for column in cur.description], row)) if row else None
+
+        cur.close()
+        conn.close()
+
         return work
 
     except Exception as e:
@@ -49,10 +73,21 @@ async def get_works(id: int):
 async def search(id: int):
     try:
         from nlp_backend.summarization import summarize_text_with_sumy
-        from nlp_backend.works import works
         from nlp_backend.cleanText import clean_pdf_text
+        conn = get_db_connection()
+        cur = conn.cursor()
 
-        work = next((work for work in works if work["id"] == id), None)
+        cur.execute(f"SELECT * FROM works WHERE id = {id}")
+
+        row = cur.fetchone()
+
+        # Convert the row into a dictionary
+        work = dict(zip([column[0]
+                    for column in cur.description], row)) if row else None
+
+        cur.close()
+        conn.close()
+
         text = extract_text("works/" + work["pdf"])
         text = clean_pdf_text(text)
         summary = summarize_text_with_sumy(text)

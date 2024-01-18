@@ -1,7 +1,7 @@
 import spacy
 from spacy.matcher import Matcher
-from nlp_backend.works import works
-from nlp_backend.publications import publications
+from fastapi.responses import JSONResponse
+from nlp_backend.testApi import get_db_connection
 
 
 def search(input_text):
@@ -70,17 +70,71 @@ def search(input_text):
             lower_year = min(years)
             upper_year = max(years)
 
-            return [work for work in works if work["elaboration_start_year"] >= lower_year and work["elaboration_end_year"] <= upper_year and author.lower() in (author.lower() for author in work["authors"])]
+            try:
+                conn = get_db_connection()
+                cur = conn.cursor()
+
+                # Convert author to lowercase for case-insensitive comparison
+                author = author.lower()
+
+                # Prepare SQL query
+                query = f"""
+                SELECT * FROM works
+                WHERE elaboration_start_year >= '{lower_year}'
+                AND elaboration_end_year <= '{upper_year}'
+                AND unaccent(lower('{author}')) = ANY(ARRAY(SELECT unaccent(lower(author)) FROM unnest(authors) as author))
+                """
+
+                cur.execute(query)
+
+                rows = cur.fetchall()
+
+                # Convert the rows into a list of dictionaries
+                works = [
+                    dict(zip([column[0] for column in cur.description], row)) for row in rows]
+
+                cur.close()
+                conn.close()
+
+                return works
+            except Exception as e:
+                return JSONResponse(content={"error": str(e)}, status_code=500)
 
         elif ("BY_AUTHOR" in matches_dict and "LIST_PUBLICATIONS" in matches_dict):
             author = ' '.join([token.text for token in matches_dict["BY_AUTHOR"]
                                if token.ent_type_ == "PER"])
-            year = [int(token.text) for token in matches_dict["LIST_PUBLICATIONS"]
+            year = [token.text for token in matches_dict["LIST_PUBLICATIONS"]
                     if token.like_num][0]
 
-            return [work for work in works if author.lower() in (author.lower() for author in work["authors"]) and
-                    any(publication['year'] == year and publication['work_id'] == work['id']
-                        for publication in publications)]
+            try:
+                conn = get_db_connection()
+                cur = conn.cursor()
+
+                # Convert author to lowercase for case-insensitive comparison
+                author = author.lower()
+
+                # Prepare SQL query
+                query = f"""
+                SELECT works.* FROM works
+                JOIN publications ON works.id = publications.work_id
+                WHERE unaccent(lower('{author}')) = ANY(ARRAY(SELECT unaccent(lower(author)) FROM unnest(works.authors) as author))
+                AND publications.publication_year = '{year}'
+                """
+
+                cur.execute(query)
+
+                rows = cur.fetchall()
+
+                # Convert the rows into a list of dictionaries
+                works = [
+                    dict(zip([column[0] for column in cur.description], row)) for row in rows]
+
+                cur.close()
+                conn.close()
+
+                return works
+            except Exception as e:
+                return JSONResponse(content={"error": str(e)}, status_code=500)
 
         elif "BETWEEN_YEARS" in matches_dict:
             years = [int(token.text) for token in matches_dict["BETWEEN_YEARS"]
@@ -88,23 +142,105 @@ def search(input_text):
             lower_year = min(years)
             upper_year = max(years)
 
-            return [work for work in works if work["elaboration_start_year"] >= lower_year and work["elaboration_end_year"] <= upper_year]
+            try:
+                conn = get_db_connection()
+                cur = conn.cursor()
+
+                query = f"""
+                SELECT * FROM works
+                WHERE elaboration_start_year >= '{lower_year}'
+                AND elaboration_end_year <= '{upper_year}'
+                """
+
+                cur.execute(query)
+
+                rows = cur.fetchall()
+                works = [
+                    dict(zip([column[0] for column in cur.description], row)) for row in rows]
+
+                cur.close()
+                conn.close()
+
+                return works
+            except Exception as e:
+                return JSONResponse(content={"error": str(e)}, status_code=500)
 
         elif "LIST_PUBLICATIONS" in matches_dict:
-            year = [int(token.text) for token in matches_dict["LIST_PUBLICATIONS"]
+            year = [token.text for token in matches_dict["LIST_PUBLICATIONS"]
                     if token.like_num][0]
 
-            return [work for work in works if any(publication['year'] == year and publication['work_id'] == work['id']
-                                                  for publication in publications)]
+            try:
+                conn = get_db_connection()
+                cur = conn.cursor()
+
+                query = f"""
+                SELECT works.* FROM works
+                JOIN publications ON works.id = publications.work_id
+                WHERE publications.publication_year = '{year}'
+                """
+
+                cur.execute(query)
+
+                rows = cur.fetchall()
+                works = [
+                    dict(zip([column[0] for column in cur.description], row)) for row in rows]
+
+                cur.close()
+                conn.close()
+
+                return works
+            except Exception as e:
+                return JSONResponse(content={"error": str(e)}, status_code=500)
 
         elif "BY_AUTHOR" in matches_dict:
             author = ' '.join([token.text for token in matches_dict["BY_AUTHOR"]
                                if token.ent_type_ == "PER"])
 
-            return [work for work in works if author.lower() in (author.lower() for author in work["authors"])]
+            try:
+                conn = get_db_connection()
+                cur = conn.cursor()
+
+                author = author.lower()
+
+                query = f"""
+                SELECT * FROM works
+                WHERE unaccent(lower('{author}')) = ANY(ARRAY(SELECT unaccent(lower(author)) FROM unnest(authors) as author))
+                """
+
+                cur.execute(query)
+
+                rows = cur.fetchall()
+                works = [
+                    dict(zip([column[0] for column in cur.description], row)) for row in rows]
+
+                cur.close()
+                conn.close()
+
+                return works
+            except Exception as e:
+                return JSONResponse(content={"error": str(e)}, status_code=500)
 
         else:
-            return works
+            try:
+                conn = get_db_connection()
+                cur = conn.cursor()
+
+                query = f"""
+                SELECT * FROM works LIMIT 10 OFFSET 0
+                """
+
+                cur.execute(query)
+
+                rows = cur.fetchall()
+                works = [
+                    dict(zip([column[0] for column in cur.description], row)) for row in rows]
+
+                cur.close()
+                conn.close()
+
+                return works
+            except Exception as e:
+                return JSONResponse(content={"error": str(e)}, status_code=500)
 
     else:
         return []
